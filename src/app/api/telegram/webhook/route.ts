@@ -160,3 +160,4 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return new Response("AI SMM Telegram Bot Webhook endpoint faol va xabarlar qabul qilishga tayyor!");
 }
+

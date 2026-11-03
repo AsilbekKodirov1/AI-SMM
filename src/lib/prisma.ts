@@ -1,5 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 
+// Ensure fallback DATABASE_URL if not configured in environment
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "file:./dev.db";
+}
+
 declare global {
   var prisma: PrismaClient | undefined;
 }
