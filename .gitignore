@@ -39,6 +39,9 @@ yarn-error.log*
 .pnpm-debug.log*
 *.log
 
+# Sub-repos
+/AI-SMM-META/
+
 # OS generated files
 .DS_Store
 Thumbs.db
