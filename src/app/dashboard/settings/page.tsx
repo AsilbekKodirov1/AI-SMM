@@ -19,6 +19,14 @@ import {
 } from "lucide-react";
 
 export default function SettingsPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-slate-400">Yuklanmoqda...</div>}>
+      <SettingsContent />
+    </React.Suspense>
+  );
+}
+
+function SettingsContent() {
   const { t, language, setLanguage } = useLanguage();
   const { user, refreshUser } = useAuth();
   const searchParams = useSearchParams();
