@@ -399,8 +399,34 @@ function SettingsContent() {
           {/* Connect New Instagram Form */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900">Yangi Instagram akkaunt ulash</h3>
+            {/* Meta Official OAuth Integration Card */}
+            <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Meta Rasmiy Instagram Login</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Meta OAuth orqali hisobingizni xavfsiz ulang va real Insights statistikasini oling.
+                </p>
+              </div>
+              <a
+                href="/api/auth/instagram"
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm transition-colors inline-flex items-center justify-center gap-2 shrink-0"
+              >
+                <Instagram className="w-3.5 h-3.5" />
+                <span>Meta orqali ulash</span>
+              </a>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-[10px] uppercase font-bold text-slate-400">Yoki username orqali</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+
             <p className="text-xs text-slate-500 leading-relaxed">
-              Instagram Graph API OAuth orqali yoki tezkor tahlil uchun istalgan ochiq username kiriting:
+              Tezkor tahlil yoki ochiq akkaunt uchun Instagram username kiriting:
             </p>
 
             <form onSubmit={handleConnectInstagram} className="flex gap-2">

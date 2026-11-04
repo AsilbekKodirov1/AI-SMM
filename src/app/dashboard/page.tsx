@@ -40,8 +40,25 @@ export default function DashboardOverviewPage() {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [localIgAccount, setLocalIgAccount] = useState<any>(null);
   const [metaTokenFound, setMetaTokenFound] = useState(false);
+  const [metaOAuthConfigured, setMetaOAuthConfigured] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check URL query parameters for OAuth results
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("connected") === "true") {
+        const u = sp.get("username");
+        setSuccessMessage(`Instagram @${u || "akkauntingiz"} Meta OAuth orqali muvaffaqiyatli ulandi!`);
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+      if (sp.get("error")) {
+        setErrorMessage(decodeURIComponent(sp.get("error")!));
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+
     // Check localStorage fallback for instant zero-lag rendering
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("aismm_active_account");
@@ -59,6 +76,9 @@ export default function DashboardOverviewPage() {
         if (d.metaTokenFound) {
           setMetaTokenFound(true);
         }
+        if (d.metaOAuthConfigured) {
+          setMetaOAuthConfigured(true);
+        }
         if (d.isConnected && d.account) {
           setLocalIgAccount(d.account);
           if (typeof window !== "undefined") {
@@ -71,6 +91,21 @@ export default function DashboardOverviewPage() {
 
   const igAccount = localIgAccount || user?.instagramAccount;
   const isConnected = !!igAccount?.isConnected;
+
+  const handleDisconnectInstagram = async () => {
+    if (!confirm("Haqiqatan ham Instagram akkauntingizni uzmoqchimisiz?")) return;
+    try {
+      await fetch("/api/instagram/connect", { method: "DELETE" });
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("aismm_active_account");
+      }
+      setLocalIgAccount(null);
+      await refreshUser();
+      await loadDashboardData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Load scenarios & AI analysis
   const loadDashboardData = async () => {
@@ -225,59 +260,103 @@ export default function DashboardOverviewPage() {
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Ssenariy Yaratish</span>
               </Link>
+              <button
+                type="button"
+                onClick={handleDisconnectInstagram}
+                title="Instagram akkauntni uzish"
+                className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors"
+              >
+                Uzish
+              </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => setConnectModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-sm transition-colors inline-flex items-center gap-2"
-            >
-              <Instagram className="w-4 h-4" />
-              <span>Instagram Akkauntni Ulash</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href="/api/auth/instagram"
+                className="px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-sm transition-colors inline-flex items-center gap-2"
+              >
+                <Instagram className="w-4 h-4" />
+                <span>Meta orqali ulash</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setConnectModalOpen(true)}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-colors"
+              >
+                Qo‘lda kiritish
+              </button>
+            </div>
           )}
         </div>
       </div>
+
+      {/* SUCCESS / ERROR ALERTS */}
+      {successMessage && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-900">
+          <div className="flex items-center gap-2.5">
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-bold">{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="text-emerald-700 hover:text-emerald-900"
+            aria-label="Yopish"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between gap-3 text-xs text-rose-900">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span className="font-medium">{errorMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="text-rose-700 hover:text-rose-900"
+            aria-label="Yopish"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* IF NOT CONNECTED: PROMINENT APPLE-STYLE CONNECTION BANNER */}
       {!isConnected && (
         <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-6">
           <div className="max-w-xl space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-              <span>Instagram akkaunt hali ulanmagan</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold">
+              <Zap className="w-3.5 h-3.5 text-[#2563EB]" />
+              <span>Meta Instagram Rasmiy Integratsiyasi</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              O‘z Instagram akkauntingizni ulang
+              O‘z Instagram profilingizni ulang
             </h2>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Biz hech qanday soxta yoki o‘ylab topilgan raqamlarni ko‘rsatmaymiz. O‘z Instagram username'ingizni kiriting — AI profilingizni tahlil qilib, faqat sizning auditoriyangiz uchun natija beradigan strategiyani tuzadi.
+              Meta rasmiy Instagram Login tizimi orqali profilingizni xavfsiz ulang. Biz real obunachilar va Instagram Insights statistikasini yuklab, faqat sizning auditoriyangizga mos AI strategiyani tuzamiz.
             </p>
           </div>
 
-          <form onSubmit={handleConnectInstagram} className="flex flex-col sm:flex-row gap-3 max-w-lg">
-            <div className="relative flex-1">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm font-bold">
-                @
-              </span>
-              <input
-                type="text"
-                required
-                value={inputUsername}
-                onChange={(e) => setInputUsername(e.target.value)}
-                placeholder="username (masalan: sardor_tech)"
-                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-300 text-sm focus:border-[#2563EB] focus:outline-none font-medium"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={connecting}
-              className="px-6 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-sm shadow-sm transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-lg">
+            <a
+              href="/api/auth/instagram"
+              className="px-6 py-3.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-sm shadow-sm transition-colors inline-flex items-center justify-center gap-2.5"
             >
-              <Instagram className="w-4 h-4" />
-              <span>{connecting ? "Ulanmoqda..." : "Akkauntni Ulash"}</span>
+              <Instagram className="w-4 h-4 text-white" />
+              <span>Meta Instagram Login orqali ulash</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => setConnectModalOpen(true)}
+              className="px-5 py-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-colors inline-flex items-center justify-center gap-2"
+            >
+              <span>Username orqali</span>
             </button>
-          </form>
+          </div>
         </div>
       )}
 
@@ -590,6 +669,26 @@ export default function DashboardOverviewPage() {
               >
                 <X className="w-4 h-4" />
               </button>
+            </div>
+
+            {/* 1. Official Meta OAuth Button */}
+            <div className="space-y-2">
+              <a
+                href="/api/auth/instagram"
+                className="w-full py-3 px-4 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-2"
+              >
+                <Instagram className="w-4 h-4 text-white" />
+                <span>Meta Instagram Login orqali ulash (Tavsiya etiladi)</span>
+              </a>
+              <p className="text-[11px] text-slate-500 text-center">
+                Meta orqali rasmiy kirish. Real followers va Instagram Insights statistikasi avtomatik ulanadi.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-[10px] uppercase font-bold text-slate-400">Yoki username bilan</span>
+              <div className="flex-1 h-px bg-slate-200" />
             </div>
 
             {metaTokenFound && (

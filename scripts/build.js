@@ -1,5 +1,7 @@
 // scripts/build.js - Cross-platform zero-fail Vercel build script
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 // 1. Fallback environment variables for build-time Prisma Client generation
 if (!process.env.DATABASE_URL) {
@@ -7,6 +9,22 @@ if (!process.env.DATABASE_URL) {
 }
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'temporary-build-jwt-secret-key-12345';
+}
+
+// 2. Adjust schema provider dynamically based on DATABASE_URL
+const isPostgres = process.env.DATABASE_URL.startsWith('postgres://') || process.env.DATABASE_URL.startsWith('postgresql://');
+const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+if (fs.existsSync(schemaPath)) {
+  let schema = fs.readFileSync(schemaPath, 'utf8');
+  if (isPostgres && schema.includes('provider = "sqlite"')) {
+    console.log('[AI SMM Build] Detected PostgreSQL database URL. Updating Prisma provider to postgresql...');
+    schema = schema.replace('provider = "sqlite"', 'provider = "postgresql"');
+    fs.writeFileSync(schemaPath, schema, 'utf8');
+  } else if (!isPostgres && schema.includes('provider = "postgresql"')) {
+    console.log('[AI SMM Build] Detected SQLite database URL. Updating Prisma provider to sqlite...');
+    schema = schema.replace('provider = "postgresql"', 'provider = "sqlite"');
+    fs.writeFileSync(schemaPath, schema, 'utf8');
+  }
 }
 
 console.log('[AI SMM Build] Step 1: Generating Prisma Client...');

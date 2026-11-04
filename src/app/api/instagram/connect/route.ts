@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { encryptToken } from "@/lib/crypto";
+import { getMetaConfig } from "@/lib/meta-instagram";
 
 function getMetaToken(): string | null {
   return (
@@ -115,6 +117,7 @@ function detectNiche(username: string, userNiche?: string): string {
 
 export async function GET(req: NextRequest) {
   try {
+    const metaConfig = getMetaConfig(req.nextUrl.origin);
     const metaToken = getMetaToken();
     let metaProfile = null;
     if (metaToken) {
@@ -144,14 +147,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         account: {
           id: ig.id,
+          instagramId: ig.instagramId || ig.id,
           username: ig.username,
           fullName: ig.fullName,
           followersCount: ig.followersCount,
+          followsCount: ig.followsCount,
+          mediaCount: ig.mediaCount,
+          profilePicUrl: ig.profilePicUrl,
           isConnected: true,
-          isMetaLive: !!metaProfile,
+          isMetaLive: !!ig.accessToken || !!metaProfile,
         },
         isConnected: true,
         metaTokenFound: !!metaToken,
+        metaOAuthConfigured: !!metaConfig.appId,
       });
     }
 
@@ -160,14 +168,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         account: {
           id: metaProfile.id,
+          instagramId: metaProfile.id,
           username: metaProfile.username,
           fullName: `@${metaProfile.username}`,
           followersCount: metaProfile.followersCount,
+          followsCount: metaProfile.followsCount,
+          mediaCount: metaProfile.mediaCount,
+          profilePicUrl: metaProfile.profilePicUrl,
           isConnected: true,
           isMetaLive: true,
         },
         isConnected: true,
         metaTokenFound: true,
+        metaOAuthConfigured: !!metaConfig.appId,
       });
     }
 
@@ -175,6 +188,7 @@ export async function GET(req: NextRequest) {
       account: null,
       isConnected: false,
       metaTokenFound: !!metaToken,
+      metaOAuthConfigured: !!metaConfig.appId,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -363,7 +377,7 @@ export async function DELETE(req: NextRequest) {
       try {
         await prisma.instagramAccount.updateMany({
           where: { userId },
-          data: { isConnected: false },
+          data: { isConnected: false, accessToken: null },
         });
       } catch (e) {}
     }

@@ -45,6 +45,7 @@ model InstagramAccount {
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   username       String
+  instagramId    String?   // Meta Instagram User ID / Business Account ID
   fullName       String?
   profilePicUrl  String?
   followersCount Int       @default(0)
@@ -52,7 +53,7 @@ model InstagramAccount {
   mediaCount     Int       @default(0)
   isConnected    Boolean   @default(true)
   isDemo         Boolean   @default(false)
-  accessToken    String?
+  accessToken    String?   // Encrypted AES-256-GCM token
   tokenExpiresAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
