@@ -86,3 +86,4 @@ export async function GET(req: NextRequest) {
   const dest = new URL("/data-deletion", req.nextUrl.origin);
   return NextResponse.redirect(dest);
 }
+
