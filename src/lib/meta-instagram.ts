@@ -4,6 +4,7 @@
 export interface MetaConfig {
   appId: string;
   appSecret: string;
+  configId?: string;
   redirectUri: string;
 }
 
@@ -44,6 +45,12 @@ export function getMetaConfig(reqOrigin?: string): MetaConfig {
     process.env.FACEBOOK_APP_SECRET ||
     "";
 
+  const configId =
+    process.env.META_CONFIG_ID ||
+    process.env.FACEBOOK_CONFIG_ID ||
+    process.env.INSTAGRAM_CONFIG_ID ||
+    "";
+
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
@@ -54,47 +61,88 @@ export function getMetaConfig(reqOrigin?: string): MetaConfig {
   const redirectUri =
     process.env.META_REDIRECT_URI || `${cleanBase}/api/auth/instagram/callback`;
 
-  return { appId, appSecret, redirectUri };
+  return { appId, appSecret, configId: configId || undefined, redirectUri };
+}
+
+export interface MetaOAuthOptions {
+  mode?: "unified" | "facebook" | "instagram_standalone";
+  configId?: string;
 }
 
 /**
  * Builds Meta Instagram OAuth authorization URL.
- * Supports both Instagram Login and Facebook Login for Instagram dialogs.
+ *
+ * NOTE ON "Invalid platform app" ERROR:
+ * Meta App IDs created in developers.facebook.com belong to the Meta / Facebook
+ * app ecosystem. Passing a Meta App ID to https://www.instagram.com/oauth/authorize
+ * triggers "Invalid Request: Request parameters are invalid: Invalid platform app"
+ * because www.instagram.com only accepts legacy standalone Instagram App IDs.
+ *
+ * For all Meta Apps, the correct official OAuth entrypoint is:
+ * https://www.facebook.com/v21.0/dialog/oauth
+ * Users can log in directly with their Instagram or Facebook credentials (Unified Login).
  */
-export function getMetaOAuthUrl(state: string, reqOrigin?: string, useFacebookDialog = false): string {
-  const { appId, redirectUri } = getMetaConfig(reqOrigin);
+export function getMetaOAuthUrl(
+  state: string,
+  reqOrigin?: string,
+  options?: MetaOAuthOptions | boolean
+): string {
+  const { appId, configId: defaultCfgId, redirectUri } = getMetaConfig(reqOrigin);
 
   if (!appId) {
     throw new Error("META_APP_ID yoki INSTAGRAM_CLIENT_ID environment variable aniqlanmadi.");
   }
 
-  if (useFacebookDialog) {
-    const scope = [
-      "email",
-      "public_profile",
-      "pages_show_list",
-      "pages_read_engagement",
-      "instagram_basic",
-      "instagram_manage_insights",
-    ].join(",");
+  // Normalize options
+  let mode: "unified" | "facebook" | "instagram_standalone" = "unified";
+  let activeConfigId = defaultCfgId;
 
-    return `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(scope)}&response_type=code`;
+  if (typeof options === "boolean") {
+    mode = options ? "facebook" : "unified";
+  } else if (options && typeof options === "object") {
+    if (options.mode) mode = options.mode;
+    if (options.configId) activeConfigId = options.configId;
   }
 
-  // Instagram Login with Instagram Graph API
-  // Scopes requested cover profile info, insights, comments, and publishing
-  const scopes = [
-    "instagram_business_basic",
-    "instagram_business_manage_insights",
-    "instagram_business_manage_comments",
-    "instagram_business_content_publish",
+  // 1. Standalone Instagram endpoint (ONLY for explicit legacy standalone Instagram App IDs)
+  if (mode === "instagram_standalone") {
+    const igScopes = [
+      "instagram_business_basic",
+      "instagram_business_manage_insights",
+      "instagram_business_manage_comments",
+      "instagram_business_content_publish",
+    ].join(",");
+
+    return `https://www.instagram.com/oauth/authorize?enable_fb_login=1&force_authentication=1&client_id=${appId}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&response_type=code&scope=${encodeURIComponent(igScopes)}&state=${encodeURIComponent(state)}`;
+  }
+
+  // 2. Meta Unified Login with Configuration ID (Facebook Login for Business)
+  if (activeConfigId) {
+    return `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&config_id=${encodeURIComponent(
+      activeConfigId
+    )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${encodeURIComponent(
+      state
+    )}`;
+  }
+
+  // 3. Meta Dialog with Scopes (Default & Recommended for Instagram API on Meta Platform)
+  const defaultScopes = [
+    "instagram_basic",
+    "instagram_manage_insights",
+    "instagram_manage_comments",
+    "instagram_content_publish",
+    "pages_show_list",
+    "pages_read_engagement",
+    "business_management",
   ].join(",");
 
-  return `https://www.instagram.com/oauth/authorize?enable_fb_login=1&force_authentication=1&client_id=${appId}&redirect_uri=${encodeURIComponent(
+  return `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(
     redirectUri
-  )}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${encodeURIComponent(state)}`;
+  )}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(
+    defaultScopes
+  )}&response_type=code`;
 }
 
 /**
@@ -110,7 +158,30 @@ export async function exchangeCodeForToken(
     throw new Error("Meta App ID yoki App Secret sozlanmagan.");
   }
 
-  // 1. Try Instagram OAuth endpoint
+  // 1. Primary: Facebook Graph API OAuth endpoint (matches v21.0 dialog/oauth)
+  try {
+    const fbUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&code=${encodeURIComponent(code)}`;
+
+    const fbRes = await fetch(fbUrl);
+    const fbData = await fbRes.json();
+
+    if (fbRes.ok && fbData.access_token) {
+      return {
+        accessToken: fbData.access_token,
+        userId: fbData.user_id ? String(fbData.user_id) : "",
+      };
+    }
+
+    if (fbData.error?.message) {
+      console.warn("[Meta OAuth] Facebook token endpoint notice:", fbData.error.message);
+    }
+  } catch (err: any) {
+    console.warn("[Meta OAuth] Facebook token request failed, trying Instagram API fallback:", err.message);
+  }
+
+  // 2. Secondary: Instagram OAuth endpoint fallback
   try {
     const params = new URLSearchParams();
     params.append("client_id", appId);
@@ -137,26 +208,10 @@ export async function exchangeCodeForToken(
       console.warn("[Meta OAuth] Instagram token endpoint warning:", data.error_message);
     }
   } catch (err: any) {
-    console.warn("[Meta OAuth] Instagram token request failed, trying Graph API:", err.message);
+    console.warn("[Meta OAuth] Instagram token request failed:", err.message);
   }
 
-  // 2. Fallback to Facebook Graph API OAuth endpoint
-  const fbUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(
-    redirectUri
-  )}&code=${encodeURIComponent(code)}`;
-
-  const fbRes = await fetch(fbUrl);
-  const fbData = await fbRes.json();
-
-  if (fbRes.ok && fbData.access_token) {
-    return {
-      accessToken: fbData.access_token,
-      userId: fbData.user_id ? String(fbData.user_id) : "",
-    };
-  }
-
-  const errorMsg = fbData.error?.message || "Meta token almashishda xatolik yuz berdi";
-  throw new Error(errorMsg);
+  throw new Error("Meta token almashishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.");
 }
 
 /**

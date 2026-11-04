@@ -38,9 +38,21 @@ export async function GET(req: NextRequest) {
     // Generate secure CSRF state
     const state = generateOAuthState();
 
-    // Check mode: Instagram Login (default) or Facebook Dialog
-    const isFacebookMode = req.nextUrl.searchParams.get("mode") === "facebook";
-    const authUrl = getMetaOAuthUrl(state, origin, isFacebookMode);
+    // Determine OAuth mode & parameters
+    const modeParam = req.nextUrl.searchParams.get("mode");
+    const configIdParam = req.nextUrl.searchParams.get("config_id") || undefined;
+
+    let mode: "unified" | "facebook" | "instagram_standalone" = "unified";
+    if (modeParam === "instagram_standalone" || modeParam === "legacy_instagram") {
+      mode = "instagram_standalone";
+    } else if (modeParam === "facebook") {
+      mode = "facebook";
+    }
+
+    const authUrl = getMetaOAuthUrl(state, origin, {
+      mode,
+      configId: configIdParam,
+    });
 
     const response = NextResponse.redirect(authUrl);
 
