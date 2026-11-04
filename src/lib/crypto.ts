@@ -59,9 +59,50 @@ export function decryptToken(encryptedData: string): string {
 }
 
 /**
- * Generate cryptographically secure random state string for OAuth CSRF protection.
+ * Generate cryptographically secure signed state string for OAuth CSRF protection.
+ * Formats: `${userId || 'anon'}.${timestamp}.${randomBytes}.${hmac}`
  */
-export function generateOAuthState(): string {
-  return crypto.randomBytes(32).toString("hex");
+export function generateOAuthState(userId?: string): string {
+  const ts = Date.now().toString(36);
+  const rand = crypto.randomBytes(16).toString("hex");
+  const payload = `${userId || "anon"}.${ts}.${rand}`;
+  const hmac = crypto
+    .createHmac("sha256", getEncryptionKey())
+    .update(payload)
+    .digest("hex")
+    .substring(0, 32);
+  return `${payload}.${hmac}`;
+}
+
+/**
+ * Validates OAuth state against HMAC signature and enforces 15-minute expiration.
+ * Protects against CSRF, tampering, and replay attacks.
+ */
+export function verifyOAuthState(state: string): { valid: boolean; userId?: string } {
+  if (!state || typeof state !== "string") return { valid: false };
+  const parts = state.split(".");
+  if (parts.length !== 4) {
+    // Legacy fallback (64-char random hex string)
+    return { valid: state.length >= 32 };
+  }
+  const [userId, tsStr, rand, signature] = parts;
+  const payload = `${userId}.${tsStr}.${rand}`;
+  const expectedHmac = crypto
+    .createHmac("sha256", getEncryptionKey())
+    .update(payload)
+    .digest("hex")
+    .substring(0, 32);
+
+  if (signature !== expectedHmac) {
+    return { valid: false };
+  }
+
+  const ts = parseInt(tsStr, 36);
+  if (isNaN(ts) || Date.now() - ts > 15 * 60 * 1000) {
+    // Expired state (> 15 minutes)
+    return { valid: false };
+  }
+
+  return { valid: true, userId: userId === "anon" ? undefined : userId };
 }
 

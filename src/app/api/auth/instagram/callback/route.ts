@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
-import { encryptToken } from "@/lib/crypto";
+import { encryptToken, verifyOAuthState } from "@/lib/crypto";
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
@@ -35,16 +35,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(dest);
   }
 
-  // 1. Verify CSRF State
+  // 1. Verify CSRF State and Signature
+  const stateCheck = state ? verifyOAuthState(state) : { valid: false };
   const savedState = req.cookies.get("ig_oauth_state")?.value;
-  if (!state || !savedState || state !== savedState) {
-    console.error("[Instagram OAuth Callback] State mismatch or missing:", { state, savedState });
+
+  const isStateValid = stateCheck.valid && (!savedState || state === savedState);
+  if (!isStateValid) {
+    console.error("[Instagram OAuth Callback] State verification failed:", { state, savedState, stateCheck });
     const dest = new URL("/dashboard", origin);
-    dest.searchParams.set("error", "Xavfsizlik tekshiruvi (OAuth state) mos kelmadi. Iltimos, qayta urinib ko'ring.");
+    dest.searchParams.set("error", "Xavfsizlik tekshiruvi (OAuth CSRF state) mos kelmadi yoki muddati o'tdi.");
     return NextResponse.redirect(dest);
   }
 
-  // 2. Identify Authenticated User
+  // 2. Identify Authenticated User (Strict Isolation - No shared fallback)
   let userId: string | null = null;
   const token = req.cookies.get("aismm_token")?.value;
   if (token) {
@@ -56,17 +59,12 @@ export async function GET(req: NextRequest) {
     userId = req.cookies.get("ig_oauth_uid")?.value || null;
   }
 
-  if (!userId) {
-    try {
-      const fallbackUser = await prisma.user.findFirst({
-        where: { role: "USER" },
-        orderBy: { updatedAt: "desc" },
-      });
-      if (fallbackUser) userId = fallbackUser.id;
-    } catch {}
+  if (!userId && stateCheck.userId) {
+    userId = stateCheck.userId;
   }
 
   if (!userId) {
+    console.warn("[Instagram OAuth Callback] Authenticated user not found, redirecting to login.");
     const dest = new URL("/auth/login", origin);
     dest.searchParams.set("redirect", "/dashboard");
     return NextResponse.redirect(dest);

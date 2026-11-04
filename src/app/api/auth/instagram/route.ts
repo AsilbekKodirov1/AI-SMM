@@ -35,8 +35,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
-    // Generate secure CSRF state
-    const state = generateOAuthState();
+    // Generate secure cryptographically signed CSRF state tied to this user
+    const state = generateOAuthState(userId);
 
     // Determine OAuth mode & parameters
     const modeParam = req.nextUrl.searchParams.get("mode");
