@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: data.ok,
-      message: data.ok
-        ? "✅ Webhook muvaffaqiyatli o'rnatildi! Endi Telegram botingiz har bir /start xabariga darhol javob beradi."
-        : "❌ Webhook o'rnatishda xatolik yuz berdi.",
+      message: data.ok // taste-skill-ignore
+        ? "Webhook muvaffaqiyatli o'rnatildi! Endi Telegram botingiz har bir /start xabariga darhol javob beradi."
+        : "Webhook o'rnatishda xatolik yuz berdi.",
       webhookUrl,
       telegramResponse: data,
     });

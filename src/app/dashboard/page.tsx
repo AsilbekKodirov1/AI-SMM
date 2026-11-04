@@ -39,6 +39,7 @@ export default function DashboardOverviewPage() {
   const [scenarioData, setScenarioData] = useState<any>(null);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [localIgAccount, setLocalIgAccount] = useState<any>(null);
+  const [metaTokenFound, setMetaTokenFound] = useState(false);
 
   useEffect(() => {
     // Check localStorage fallback for instant zero-lag rendering
@@ -55,6 +56,9 @@ export default function DashboardOverviewPage() {
     fetch("/api/instagram/connect")
       .then((r) => r.json())
       .then((d) => {
+        if (d.metaTokenFound) {
+          setMetaTokenFound(true);
+        }
         if (d.isConnected && d.account) {
           setLocalIgAccount(d.account);
           if (typeof window !== "undefined") {
@@ -101,7 +105,7 @@ export default function DashboardOverviewPage() {
   // Connect Instagram account
   const handleConnectInstagram = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputUsername) return;
+    if (!inputUsername && !metaTokenFound) return;
     setConnecting(true);
 
     try {
@@ -112,6 +116,7 @@ export default function DashboardOverviewPage() {
           username: inputUsername,
           niche: inputNiche,
           followers: inputFollowers ? parseInt(inputFollowers, 10) : undefined,
+          useMetaToken: true,
         }),
       });
 
@@ -125,7 +130,7 @@ export default function DashboardOverviewPage() {
         }
         await refreshUser();
         setConnectModalOpen(false);
-        const savedUsername = inputUsername;
+        const savedUsername = data.account?.username || inputUsername;
         setInputUsername("");
         setInputFollowers("");
         // Automatically prompt to run first AI audit for this specific account
@@ -587,10 +592,22 @@ export default function DashboardOverviewPage() {
               </button>
             </div>
 
+            {metaTokenFound && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
+                <Zap className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-bold">Meta Developers API Token aniqlandi!</div>
+                  <p className="text-[11px] text-blue-700 mt-0.5">
+                    Meta orqali profil avtomatik tortib olinadi. Username kiriting yoki to‘g‘ridan-to‘g‘ri ulash tugmasini bosing.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleConnectInstagram} className="space-y-4 text-xs">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
-                  Instagram Username
+                  Instagram Username {metaTokenFound && <span className="font-normal text-slate-400">(Ixtiyoriy)</span>}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">
@@ -598,10 +615,10 @@ export default function DashboardOverviewPage() {
                   </span>
                   <input
                     type="text"
-                    required
+                    required={!metaTokenFound}
                     value={inputUsername}
                     onChange={(e) => setInputUsername(e.target.value)}
-                    placeholder="my_instagram_username"
+                    placeholder={metaTokenFound ? "masalan: username yoki bo‘sh qoldiring" : "my_instagram_username"}
                     className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-300 focus:border-[#2563EB] focus:outline-none font-medium"
                   />
                 </div>

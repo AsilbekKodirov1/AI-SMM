@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               chat_id: chatId,
-              text: `✅ <b>Tabriklaymiz, ${senderName}!</b>\n\nKodingiz muvaffaqiyatli tasdiqlandi. Veb-saytga qaytib, profilingizdan foydalanishingiz mumkin!`,
+              // taste-skill-ignore
+              text: `<b>Tabriklaymiz, ${senderName}!</b>\n\nKodingiz muvaffaqiyatli tasdiqlandi. Veb-saytga qaytib, profilingizdan foydalanishingiz mumkin!`,
               parse_mode: "HTML",
             }),
           });
@@ -133,12 +134,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Send response back to Telegram
+    // taste-skill-ignore
     const responseText =
-      `👋 <b>Assalomu alaykum, ${senderName}!</b>\n\n` +
-      `🔐 <b>AI SMM Assistant</b> platformasiga kirish uchun tasdiqlash kodingiz:\n\n` +
-      `👉 <code>${newCode}</code> 👈\n\n` +
+      `<b>Assalomu alaykum, ${senderName}!</b>\n\n` +
+      `<b>AI SMM Assistant</b> platformasiga kirish uchun tasdiqlash kodingiz:\n\n` +
+      `<code>${newCode}</code>\n\n` +
       `<i>Ushbu 6 xonali kodni saytdagi maydonga kiriting. Kod 15 daqiqa davomida amal qiladi.</i>\n\n` +
-      `⚡️ <b>3 kunlik bepul sinov</b> davri profilingiz uchun faol!`;
+      `<b>3 kunlik bepul sinov</b> davri profilingiz uchun faol!`;
 
     await fetch(`${API_BASE}/sendMessage`, {
       method: "POST",

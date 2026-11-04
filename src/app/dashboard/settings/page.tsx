@@ -40,6 +40,8 @@ function SettingsContent() {
   // Instagram account state
   const [newIgHandle, setNewIgHandle] = useState("");
   const [accountConnectSuccess, setAccountConnectSuccess] = useState(false);
+  const [localIgAccount, setLocalIgAccount] = useState<any>(null);
+  const [metaTokenFound, setMetaTokenFound] = useState(false);
 
   // Subscription modal state
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
@@ -47,6 +49,33 @@ function SettingsContent() {
   const [paymentProvider, setPaymentProvider] = useState<"Payme" | "Click" | "Stripe">("Payme");
   const [paying, setPaying] = useState(false);
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("aismm_active_account");
+      if (saved) {
+        try {
+          setLocalIgAccount(JSON.parse(saved));
+        } catch {}
+      }
+    }
+
+    fetch("/api/instagram/connect")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.metaTokenFound) setMetaTokenFound(true);
+        if (d.isConnected && d.account) {
+          setLocalIgAccount(d.account);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("aismm_active_account", JSON.stringify(d.account));
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const igAccount = localIgAccount || user?.instagramAccount;
+  const isConnected = !!igAccount?.isConnected;
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -57,14 +86,21 @@ function SettingsContent() {
 
   const handleConnectInstagram = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newIgHandle) return;
+    if (!newIgHandle && !metaTokenFound) return;
     try {
       const res = await fetch("/api/instagram/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newIgHandle }),
+        body: JSON.stringify({ username: newIgHandle, useMetaToken: true }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (data.account) {
+          setLocalIgAccount(data.account);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("aismm_active_account", JSON.stringify(data.account));
+          }
+        }
         await refreshUser();
         // Also run audit
         await fetch("/api/ai/audit", { method: "POST", headers: { "Content-Type": "application/json" } });
@@ -318,7 +354,7 @@ function SettingsContent() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-6 space-y-5">
             <h2 className="text-base font-bold text-slate-900">Ulangan Instagram akkauntlari</h2>
             
-            {user?.instagramAccount?.isConnected ? (
+            {isConnected && igAccount ? (
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-blue-50 border border-brand-200 flex items-center justify-center text-brand-600 font-bold text-sm">
@@ -326,13 +362,13 @@ function SettingsContent() {
                   </div>
                   <div>
                     <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                      <span>@{user.instagramAccount.username}</span>
+                      <span>@{igAccount.username}</span>
                       <span className="text-[10px] font-bold bg-growth-light text-growth-dark px-1.5 py-0.5 rounded">
                         Faol ulangan
                       </span>
                     </div>
                     <div className="text-xs text-slate-500">
-                      {user.instagramAccount.followersCount?.toLocaleString() || 0} kuzatuvchilar
+                      {igAccount.followersCount?.toLocaleString() || 0} kuzatuvchilar
                     </div>
                   </div>
                 </div>
@@ -341,6 +377,10 @@ function SettingsContent() {
                   type="button"
                   onClick={async () => {
                     await fetch("/api/instagram/connect", { method: "DELETE" });
+                    if (typeof window !== "undefined") {
+                      localStorage.removeItem("aismm_active_account");
+                    }
+                    setLocalIgAccount(null);
                     await refreshUser();
                   }}
                   className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline"
