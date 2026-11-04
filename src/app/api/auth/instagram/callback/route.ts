@@ -170,9 +170,9 @@ export async function GET(req: NextRequest) {
 
     return response;
   } catch (err: any) {
-    console.error("[Instagram OAuth Callback Execution Error]:", err);
+    console.error("[Instagram OAuth Callback Execution Error]:", err.message || err);
     const dest = new URL("/dashboard", origin);
-    dest.searchParams.set("error", encodeURIComponent(err.message || "Meta hisobini ulashda xatolik yuz berdi"));
+    dest.searchParams.set("error", err.message || "Meta hisobini ulashda xatolik yuz berdi");
     return NextResponse.redirect(dest);
   }
 }
