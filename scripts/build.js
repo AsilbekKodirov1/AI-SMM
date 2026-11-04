@@ -1,4 +1,5 @@
 // scripts/build.js - Cross-platform zero-fail Vercel build script
+require('dotenv').config();
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');

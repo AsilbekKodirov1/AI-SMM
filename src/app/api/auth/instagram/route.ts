@@ -3,6 +3,8 @@ import { verifyToken } from "@/lib/auth";
 import { generateOAuthState } from "@/lib/crypto";
 import { getMetaOAuthUrl, getMetaConfig } from "@/lib/meta-instagram";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const origin = req.nextUrl.origin;

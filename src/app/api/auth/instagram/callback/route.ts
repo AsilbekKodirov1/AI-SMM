@@ -9,6 +9,8 @@ import {
   fetchInstagramInsights,
 } from "@/lib/meta-instagram";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const searchParams = req.nextUrl.searchParams;
