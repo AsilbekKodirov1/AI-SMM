@@ -64,3 +64,4 @@ export function decryptToken(encryptedData: string): string {
 export function generateOAuthState(): string {
   return crypto.randomBytes(32).toString("hex");
 }
+
