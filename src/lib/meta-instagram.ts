@@ -37,7 +37,7 @@ export function getMetaConfig(reqOrigin?: string): MetaConfig {
     process.env.INSTAGRAM_CLIENT_ID ||
     process.env.NEXT_PUBLIC_META_APP_ID ||
     process.env.FACEBOOK_APP_ID ||
-    "";
+    "1102244809480892";
 
   const appSecret =
     process.env.META_APP_SECRET ||
@@ -45,21 +45,29 @@ export function getMetaConfig(reqOrigin?: string): MetaConfig {
     process.env.FACEBOOK_APP_SECRET ||
     "";
 
+  // Primary Configuration ID for Facebook Login for Business Unified Login
+  // Supported options: 1686699859457934 (Primary Login) or 2333942797425989
   const configId =
     process.env.META_CONFIG_ID ||
     process.env.FACEBOOK_CONFIG_ID ||
     process.env.INSTAGRAM_CONFIG_ID ||
-    "";
+    "1686699859457934";
 
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
     reqOrigin ||
-    "http://localhost:3000";
+    "https://ai-smm-meta.vercel.app";
 
   const cleanBase = baseUrl.replace(/\/+$/, "");
+
+  // Match the exact Whitelisted Redirect URI registered in Meta Developer Dashboard:
+  // https://ai-smm-meta.vercel.app/api/instagram/callback
   const redirectUri =
-    process.env.META_REDIRECT_URI || `${cleanBase}/api/auth/instagram/callback`;
+    process.env.META_REDIRECT_URI ||
+    (cleanBase.includes("localhost")
+      ? `${cleanBase}/api/instagram/callback`
+      : "https://ai-smm-meta.vercel.app/api/instagram/callback");
 
   return { appId, appSecret, configId: configId || undefined, redirectUri };
 }
