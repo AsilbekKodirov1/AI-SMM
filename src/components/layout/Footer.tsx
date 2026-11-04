@@ -104,12 +104,17 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-white transition-colors">
-                  Maxfiylik siyosati (Privacy)
+                  Maxfiylik siyosati (Privacy Policy)
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="hover:text-white transition-colors">
-                  Foydalanish shartlari (Terms)
+                  Foydalanish shartlari (Terms of Service)
+                </Link>
+              </li>
+              <li>
+                <Link href="/data-deletion" className="hover:text-white transition-colors">
+                  Ma'lumotlarni o‘chirish (Data Deletion)
                 </Link>
               </li>
               <li>
