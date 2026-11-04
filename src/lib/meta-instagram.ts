@@ -45,13 +45,14 @@ export function getMetaConfig(reqOrigin?: string): MetaConfig {
     process.env.FACEBOOK_APP_SECRET ||
     "";
 
-  // Primary Configuration ID for Facebook Login for Business Unified Login
-  // Supported options: 1686699859457934 (Primary Login) or 2333942797425989
+  // Configuration ID for Facebook Login for Business Unified Login
+  // Note: 1686699859457934 uses SUAT (System User Token - for server/business).
+  // 2333942797425989 uses User Access Token (required for client Instagram logins).
   const configId =
     process.env.META_CONFIG_ID ||
     process.env.FACEBOOK_CONFIG_ID ||
     process.env.INSTAGRAM_CONFIG_ID ||
-    "1686699859457934";
+    "2333942797425989";
 
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
